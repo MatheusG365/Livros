@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Alert, useColorScheme } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import Card from "../components/Card";
 import { useApp } from "../context/AppContext";
 
 function obterPreco(livro) {
@@ -14,6 +15,19 @@ export default function DetalhesLivro({ route, navigation }) {
     const { favoritos, alternarFavorito, logado } = useApp();
     const dark = useColorScheme() === "dark";
     const favorito = favoritos.some((item) => String(item.id) === String(livro?.id));
+
+    if (!logado) {
+        return (
+            <View style={[styles.vazioTela, dark && styles.containerDark]}>
+                <Ionicons name="lock-closed-outline" size={54} color="#0066B3" />
+                <Text style={[styles.tituloVazio, dark && styles.textoDark]}>Favoritos protegidos</Text>
+                <Text style={[styles.texto, dark && styles.textoDark]}>Faça login para acessar sua lista de livros favoritos.</Text>
+                <TouchableOpacity style={styles.botao} onPress={() => navigation.navigate("Login")}>
+                    <Text style={styles.botaoTexto}>Entrar</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
 
     if (!livro) {
         return <View style={styles.erro}><Text>Livro não encontrado.</Text></View>;

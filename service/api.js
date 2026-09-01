@@ -1,87 +1,40 @@
+export const API_URL = "https://apps-api-livros.ucxocw.easypanel.host";
+
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export const API_URL =
-    "https://apps-api-livros.ucxocw.easypanel.host";
+export async function getToken() {
+  return AsyncStorage.getItem("livraria_token");
+}
+
+function extrairMensagem(dados, status) {
+  if (!dados) return `Erro HTTP ${status}`;
+  if (typeof dados === "string") return dados;
+  if (Array.isArray(dados?.detail)) {
+    return dados.detail.map((e) => e?.msg || e?.message).filter(Boolean).join("\n") || `Erro HTTP ${status}`;
+  }
+  return dados?.detail || dados?.message || dados?.mensagem || dados?.erro || `Erro HTTP ${status}`;
+}
 
 export async function requisicao(endpoint, opcoes = {}) {
-    const url = `${API_URL}${endpoint}`;
+  const token = await getToken();
+  const headers = {
+    Accept: "application/json",
+    ...(opcoes.body !== undefined ? { "Content-Type": "application/json" } : {}),
+    ...(opcoes.headers || {}),
+  };
 
-    try {
-        // Recupera o token salvo no login
-        const token = await AsyncStorage.getItem(
-            "livraria_token"
-        );
+  if (token && !headers.Authorization) headers.Authorization = `Bearer ${token}`;
 
-        console.log("=================================");
-        console.log("REQUISIÇÃO");
-        console.log("URL:", url);
-        console.log("TOKEN EXISTE:", !!token);
-        console.log("=================================");
+  const resposta = await fetch(`${API_URL}${endpoint}`, { ...opcoes, headers });
+  const texto = await resposta.text();
+  let dados = null;
+  try { dados = texto ? JSON.parse(texto) : null; } catch { dados = texto; }
 
-        const headers = {
-            Accept: "application/json",
-            ...(opcoes.headers || {}),
-        };
-
-        /*
-         * Só adiciona Content-Type automaticamente
-         * quando não estiver enviando FormData.
-         */
-        if (!(opcoes.body instanceof FormData)) {
-            headers["Content-Type"] = "application/json";
-        }
-
-        /*
-         * AQUI ESTÁ A CORREÇÃO PRINCIPAL:
-         *
-         * Todas as requisições protegidas passam
-         * o token JWT para a API.
-         */
-        if (token) {
-            headers["Authorization"] = `Bearer ${token}`;
-        }
-
-        const resposta = await fetch(url, {
-            ...opcoes,
-            headers,
-        });
-
-        const texto = await resposta.text();
-
-        let dados = null;
-
-        try {
-            dados = texto ? JSON.parse(texto) : null;
-        } catch {
-            dados = texto;
-        }
-
-        console.log("STATUS:", resposta.status);
-        console.log("RESPOSTA:", dados);
-
-        if (!resposta.ok) {
-            if (resposta.status === 401) {
-                throw new Error(
-                    "Sessão inválida ou expirada. Faça login novamente."
-                );
-            }
-
-            throw new Error(
-                dados?.detail ||
-                dados?.message ||
-                dados?.erro ||
-                `Erro HTTP ${resposta.status}`
-            );
-        }
-
-        return dados;
-
-    } catch (error) {
-        console.log(
-            "ERRO NA REQUISIÇÃO:",
-            error
-        );
-
-        throw error;
-    }
+  if (!resposta.ok) {
+    const erro = new Error(extrairMensagem(dados, resposta.status));
+    erro.status = resposta.status;
+    erro.data = dados;
+    throw erro;
+  }
+  return dados;
 }

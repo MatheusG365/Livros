@@ -1,19 +1,16 @@
-import { requisicao } from "../api";
+import { listarLivros } from "./livros";
 
-export async function buscarLivros({ setLivros, setCarregando, setErro }) {
-    if (setCarregando) setCarregando(true);
-    if (setErro) setErro("");
-
-    try {
-        const resultado = await requisicao("/livros");
-        const lista = Array.isArray(resultado) ? resultado : resultado?.livros || [];
-        setLivros(lista);
-        return lista;
-    } catch (error) {
-        console.log("ERRO AO BUSCAR LIVROS:", error);
-        if (setErro) setErro("Não foi possível carregar os livros. Tente novamente.");
-        throw error;
-    } finally {
-        if (setCarregando) setCarregando(false);
-    }
+export async function buscarLivros({ setLivros, setCarregando, setErro } = {}) {
+  setCarregando?.(true);
+  setErro?.("");
+  try {
+    const lista = await listarLivros();
+    setLivros?.(lista);
+    return lista;
+  } catch (error) {
+    setErro?.(error.message || "Não foi possível carregar os livros.");
+    throw error;
+  } finally {
+    setCarregando?.(false);
+  }
 }
